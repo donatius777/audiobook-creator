@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>{{TITLE}} - Audiobook</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'Georgia', 'Times New Roman', serif;
+    background: #0a0a0f;
+    color: #e8e0d4;
+    min-height: 100vh;
+  }
+
+  .container {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 40px 24px 120px;
+  }
+
+  .header {
+    text-align: center;
+    padding: 48px 0 40px;
+    border-bottom: 1px solid #2a2520;
+    margin-bottom: 32px;
+  }
+
+  .header h1 {
+    font-size: 28px;
+    font-weight: 400;
+    letter-spacing: 1px;
+    color: #d4a574;
+    line-height: 1.3;
+    margin-bottom: 8px;
+  }
+
+  .header .author {
+    font-size: 16px;
+    color: #8a7e72;
+    font-style: italic;
+    margin-top: 8px;
+  }
+
+  .header .info {
+    font-size: 13px;
+    color: #5a5248;
+    margin-top: 16px;
+  }
+
+  .chapter-list { list-style: none; }
+
+  .chapter-item {
+    padding: 16px 20px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 4px;
+  }
+
+  .chapter-item:hover { background: #1a1814; }
+
+  .chapter-item.active {
+    background: #1e1810;
+    border-left: 3px solid #d4a574;
+  }
+
+  .chapter-item.playing { background: #1e1810; }
+
+  .chapter-num {
+    font-size: 12px;
+    color: #5a5248;
+    min-width: 28px;
+    text-align: center;
+  }
+
+  .chapter-title {
+    font-size: 15px;
+    flex: 1;
+    line-height: 1.4;
+  }
+
+  .play-icon {
+    width: 20px;
+    height: 20px;
+    display: none;
+    color: #d4a574;
+  }
+
+  .chapter-item.playing .play-icon { display: block; }
+  .chapter-item.playing .chapter-num { display: none; }
+
+  /* Player bar */
+  .player {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #141210;
+    border-top: 1px solid #2a2520;
+    z-index: 100;
+  }
+
+  .progress-bar-container {
+    width: 100%;
+    height: 4px;
+    background: #2a2520;
+    cursor: pointer;
+  }
+
+  .progress-bar-container:hover { height: 6px; }
+
+  .progress-bar {
+    height: 100%;
+    background: #d4a574;
+    width: 0%;
+    transition: width 0.1s linear;
+  }
+
+  .player-content {
+    max-width: 720px;
+    margin: 0 auto;
+    padding: 12px 24px 16px;
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  .player-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .btn {
+    background: none;
+    border: none;
+    color: #e8e0d4;
+    cursor: pointer;
+    padding: 8px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+  }
+
+  .btn:hover { background: #2a2520; }
+
+  .btn-play {
+    width: 48px;
+    height: 48px;
+    background: #d4a574;
+    color: #0a0a0f;
+  }
+
+  .btn-play:hover { background: #e0b585; }
+
+  .btn svg { width: 20px; height: 20px; }
+  .btn-play svg { width: 24px; height: 24px; }
+
+  .player-info { flex: 1; min-width: 0; }
+
+  .player-title {
+    font-size: 14px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .player-time {
+    font-size: 12px;
+    color: #5a5248;
+    margin-top: 2px;
+  }
+
+  .speed-btn {
+    font-size: 12px;
+    padding: 4px 10px;
+    border-radius: 12px;
+    font-family: inherit;
+    color: #8a7e72;
+    min-width: 44px;
+  }
+
+  .loading {
+    text-align: center;
+    padding: 40px;
+    color: #5a5248;
+  }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  .spinner {
+    width: 24px;
+    height: 24px;
+    border: 2px solid #2a2520;
+    border-top-color: #d4a574;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+    margin: 0 auto 12px;
+  }
+
+  @keyframes eq1 { 0%,100% { height: 4px; } 50% { height: 16px; } }
+  @keyframes eq2 { 0%,100% { height: 8px; } 50% { height: 14px; } }
+  @keyframes eq3 { 0%,100% { height: 6px; } 50% { height: 18px; } }
+
+  .equalizer {
+    display: flex;
+    align-items: flex-end;
+    gap: 2px;
+    height: 20px;
+  }
+
+  .eq-bar {
+    width: 3px;
+    background: #d4a574;
+    border-radius: 1px;
+  }
+
+  .eq-bar:nth-child(1) { animation: eq1 0.6s ease-in-out infinite; }
+  .eq-bar:nth-child(2) { animation: eq2 0.5s ease-in-out infinite 0.1s; }
+  .eq-bar:nth-child(3) { animation: eq3 0.7s ease-in-out infinite 0.2s; }
+
+  .paused .eq-bar { animation-play-state: paused; }
+
+  /* Download section */
+  .download-section {
+    margin-top: 40px;
+    padding-top: 32px;
+    border-top: 1px solid #2a2520;
+    text-align: center;
+  }
+
+  .download-section h2 {
+    font-size: 18px;
+    font-weight: 400;
+    color: #d4a574;
+    margin-bottom: 8px;
+  }
+
+  .download-section p {
+    font-size: 13px;
+    color: #5a5248;
+    margin-bottom: 20px;
+    line-height: 1.5;
+  }
+
+  .download-all-btn {
+    display: inline-block;
+    background: #d4a574;
+    color: #0a0a0f;
+    border: none;
+    padding: 14px 36px;
+    border-radius: 8px;
+    font-family: inherit;
+    font-size: 15px;
+    cursor: pointer;
+    transition: background 0.2s;
+    text-decoration: none;
+  }
+
+  .download-all-btn:hover { background: #e0b585; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <h1>{{TITLE}}</h1>
+    <div class="author">by {{AUTHOR}}</div>
+    <div class="info" id="chapterInfo"></div>
+  </div>
+
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    Loading chapters...
+  </div>
+  <ul id="chapterList" class="chapter-list" style="display:none;"></ul>
+
+  <div id="downloadSection" class="download-section" style="display:none;">
+    <h2>Download Full Audiobook</h2>
+    <p>Download all chapters combined into a single MP3 file.<br>
+    This will open in a new tab and your browser will save the file.</p>
+    <button class="download-all-btn" onclick="window.open('/download-all', '_blank')">
+      Download Complete Audiobook
+    </button>
+  </div>
+</div>
+
+<div class="player" id="player" style="display:none;">
+  <div class="progress-bar-container" id="progressContainer">
+    <div class="progress-bar" id="progressBar"></div>
+  </div>
+  <div class="player-content">
+    <div class="player-controls">
+      <button class="btn" id="prevBtn" title="Previous chapter">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
+      </button>
+      <button class="btn btn-play" id="playBtn" title="Play/Pause">
+        <svg id="playIcon" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+        <svg id="pauseIcon" viewBox="0 0 24 24" fill="currentColor" style="display:none;"><path d="M6 4h4v16H6zM14 4h4v16h-4z"/></svg>
+      </button>
+      <button class="btn" id="nextBtn" title="Next chapter">
+        <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
+      </button>
+    </div>
+    <div class="player-info">
+      <div class="player-title" id="playerTitle">Select a chapter to begin</div>
+      <div class="player-time"><span id="currentTime">0:00</span> / <span id="totalTime">0:00</span></div>
+    </div>
+    <button class="btn speed-btn" id="speedBtn" title="Playback speed">1x</button>
+  </div>
+</div>
+
+<script>
+var audio = new Audio();
+audio.preload = 'auto';
+var chapters = [];
+var currentChapter = -1;
+var isPlaying = false;
+var speeds = [0.75, 1, 1.25, 1.5, 2];
+var speedIdx = 1;
+
+async function init() {
+  try {
+    var res = await fetch('/api/chapters');
+    chapters = await res.json();
+    renderChapters();
+    document.getElementById('loading').style.display = 'none';
+    document.getElementById('chapterList').style.display = 'block';
+    document.getElementById('downloadSection').style.display = 'block';
+    document.getElementById('player').style.display = 'block';
+    document.getElementById('chapterInfo').textContent = chapters.length + ' Chapters';
+  } catch(e) {
+    document.getElementById('loading').innerHTML = 'Error loading chapters: ' + e.message;
+  }
+}
+
+function renderChapters() {
+  var list = document.getElementById('chapterList');
+  var html = '';
+  for (var i = 0; i < chapters.length; i++) {
+    var ch = chapters[i];
+    html += '<li class="chapter-item" data-id="' + i + '" onclick="playChapter(' + i + ')">' +
+      '<span class="chapter-num">' + (i + 1) + '</span>' +
+      '<div class="play-icon equalizer"><div class="eq-bar"></div><div class="eq-bar"></div><div class="eq-bar"></div></div>' +
+      '<span class="chapter-title">' + ch.title + '</span>' +
+      '</li>';
+  }
+  list.innerHTML = html;
+}
+
+function playChapter(idx) {
+  if (idx < 0 || idx >= chapters.length) return;
+  var items = document.querySelectorAll('.chapter-item');
+  for (var i = 0; i < items.length; i++) {
+    items[i].classList.remove('active', 'playing');
+  }
+  currentChapter = idx;
+  var ch = chapters[idx];
+  audio.src = ch.url;
+  audio.load();
+  audio.play().then(function() {
+    isPlaying = true;
+    updatePlayBtn();
+  }).catch(function(e) { console.error('Play error:', e); });
+  document.querySelector('[data-id="' + idx + '"]').classList.add('active', 'playing');
+  document.getElementById('playerTitle').textContent = ch.title;
+}
+
+function togglePlay() {
+  if (currentChapter === -1) { playChapter(0); return; }
+  if (isPlaying) { audio.pause(); } else { audio.play(); }
+  isPlaying = !isPlaying;
+  updatePlayBtn();
+}
+
+function updatePlayBtn() {
+  document.getElementById('playIcon').style.display = isPlaying ? 'none' : 'block';
+  document.getElementById('pauseIcon').style.display = isPlaying ? 'block' : 'none';
+  var el = document.querySelector('[data-id="' + currentChapter + '"]');
+  if (el) {
+    if (isPlaying) el.classList.add('playing');
+    else el.classList.remove('playing');
+  }
+}
+
+function formatTime(s) {
+  if (isNaN(s)) return '0:00';
+  var m = Math.floor(s / 60);
+  var sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+
+audio.addEventListener('timeupdate', function() {
+  document.getElementById('currentTime').textContent = formatTime(audio.currentTime);
+  document.getElementById('totalTime').textContent = formatTime(audio.duration);
+  if (audio.duration) {
+    document.getElementById('progressBar').style.width = (audio.currentTime / audio.duration * 100) + '%';
+  }
+});
+
+audio.addEventListener('ended', function() {
+  if (currentChapter < chapters.length - 1) {
+    playChapter(currentChapter + 1);
+  } else {
+    isPlaying = false;
+    updatePlayBtn();
+  }
+});
+
+audio.addEventListener('pause', function() { isPlaying = false; updatePlayBtn(); });
+audio.addEventListener('play', function() { isPlaying = true; updatePlayBtn(); });
+
+document.getElementById('playBtn').addEventListener('click', togglePlay);
+document.getElementById('prevBtn').addEventListener('click', function() {
+  if (currentChapter > 0) playChapter(currentChapter - 1);
+});
+document.getElementById('nextBtn').addEventListener('click', function() {
+  if (currentChapter < chapters.length - 1) playChapter(currentChapter + 1);
+});
+
+document.getElementById('progressContainer').addEventListener('click', function(e) {
+  var rect = e.currentTarget.getBoundingClientRect();
+  var pct = (e.clientX - rect.left) / rect.width;
+  if (audio.duration) audio.currentTime = pct * audio.duration;
+});
+
+document.getElementById('speedBtn').addEventListener('click', function() {
+  speedIdx = (speedIdx + 1) % speeds.length;
+  audio.playbackRate = speeds[speedIdx];
+  document.getElementById('speedBtn').textContent = speeds[speedIdx] + 'x';
+});
+
+init();
+</script>
+</body>
+</html>
